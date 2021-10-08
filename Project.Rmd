@@ -1,0 +1,266 @@
+---
+title: "Individualism and COVID-19 impact"
+author: "***Karen Vergeest (Student number = 25387405)*** "
+output:
+  rmarkdown::html_document:
+    theme: flatly
+
+---
+
+<style type="text/css">
+  body{
+  font-size: 14pt;
+}
+</style>
+
+
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("tidyverse")
+library("kableExtra")
+library("lubridate")
+
+data <- read.csv("d.csv")
+data <- select(data,-"X")
+data <- filter(data, data$new_cases > 0)
+
+country_summary <- data %>% group_by(location) %>% summarise("c"=mean(new_cases), 
+  "p"=mean(population), "i"=mean(individualism_index), "g"=mean(gdp_per_capita),"s"=mean(stringency_index))                                                          
+```
+
+# Introduction
+All across the globe, states have implemented restrictions to fight the spread of COVID-19. However, policy is often only effective in so far as individual citizens choose to prioritize the safety of their community above their own convenience. 
+In his research, Dutch social psychologist Geert Hofstede attempted to quantify international culture differences.  One of the cultural dimensions Hofstede looked at was the individualism-collectivism spectrum. 
+
+## Aim of analysis
+The aim of this project is to determine whether individualist attitudes within a country can be a driver behind COVID-19 cases. 
+
+
+
+## Where does the dataset come from?
+The dataset provided with this project contains the attributes "location","date","gdp_per_capita", "population","stringency_index", "new_cases" and "individualism_index" for 55 countries. 
+This dataset was constructed from two sources. Data regarding COVID-19 was sourced from the "Our World in Data" Corona virus dataset. Data regarding the individualism index of the 55 countries was taken from Hofstede's model. Hofstede's research assigned each country an individualism index, where 1 is the most collectivistic and 100 is the most individualistic.
+
+
+
+## Why was this dataset chosen?
+it is reasonable to assume that the individualism index might be some indicator of the social responsibility citizens feel towards their community. The daily new cases per country might give an indication of the severity of the pandemic's impact. Looking at the mean daily cases  as a measure of COVID-19 impact is meaningful, since the amount of cases per day is also an indicator of how much pressure the health system had to handle at a specific time. Thus looking at mean daily cases makes more sense than looking at total numbers. 
+
+
+
+# Data Cleaning
+### ***Attribute Selection***
+The attributes "location","date","new_cases","population","stringency_index" and "gdp_per_capita" was selected from the larger "Our World in Data"-dataset. All other data from the "Our World in Data"-dataset was discarded.
+
+### ***Removing empty entries***
+Even with fewer attributes, the resulting dataset still contained entries with some empty fields. There entries were removed from the dataset. After this removal, any countries that did not have entries for at least 100 days were removed. 
+
+### ***Negative numbers for the "new cases" attribute***
+After working with the data, it became apparent that one of the entries contained a negative value for the "new cases" attribute. This value was assumed to be a mistake and removed from the dataset.
+
+### ***Adding individualism index***
+A "indivdualism_index" column was added to the dataset. The indivualism index for each of the countries was then manually entered. 
+
+
+
+# Understanding the dataset
+
+## Individualism Index
+Since this project is trying determine the influence of the individualism index, it is helpful to look at a boxplot of this attribute. \
+
+```{r echo=FALSE}
+ggplot(data=country_summary) + geom_boxplot(aes(x=i))+labs(title="Boxplot of the individualism index",x="Individualism Index",y='')+stat_summary(aes(x=i,y=0),geom = "crossbar", width=0.65, fatten=0, color="white", fun.data = function(x){ return(c(y=median(x), ymin=median(x), ymax=median(x))) })
+
+
+
+
+```
+
+
+
+
+## Understanding this plot
+This plot contains a simple boxplot of the individualism index.
+It is important to note that the individualism index is the only attribute looked at in this plot. The y-axis is meaningless.
+
+## Intepretation
+
+### ***There are more collectivistic countries in the dataset***
+From the boxplot it is clear that there are more collectivistic countries than individualistic countries in the dataset and that most of the data points lie to to the left of the chart. Luckily, this might not pose a problem to our interpretation of the data since culture is such a subjective thing and comparing countries relative to each other might still expose a trend.  
+
+### ***The more individualistic half of the data is more spread out***
+Even though there are more collectivistic countries, these countries seem to have similar indexes. The individualism index of the countries in the individualistic half seems to vary more. Some countries in the individualistic half with a very high individualism index explains why the average individualism index of 42.12727 is still reletively high consider that there are more collectivistic countries than individualistic countries in the dataset. 
+
+
+
+
+
+
+## How individualism correlates with all the attributes in the dataset
+
+This table shows how the individualism index correlated with other attributes in the dataset. The aim of this table is to get an initial understanding of the individualism index's influence and to try and determine whether there are any "third variables" that might influence our interpretation. 
+
+```{r echo=FALSE}
+cors <- cor(country_summary[,unlist(lapply(country_summary, is.numeric))])
+
+attr <- c("Mean Daily Cases","Population","Individualism_index","GDP per Capita","Stringency")
+val <- c(cors[3,1], cors[3,2], cors[3,3],cors[3,4],cors[3,5])
+
+cors <- data.frame(attr,val)
+colnames(cors) <- c("Attribute","Correlation with Individualism Index");
+
+kable(cors) %>% kable_styling()
+
+```
+### ***Correlation with GDP per capita***
+From this table it is clear that a country's individualism index correlates most strongly with its GDP per capita (correlation=0.5873139). Individualistic countries (countries with a higher individualism index) are more likely to have a higher GDP per capita. This could pose a problem to our interpretation. Since  individualistic countries are are likely to be wealthier, they are also likely to have better health care systems which could help them more effectively contain the spread of COVID-19. 
+
+This means that even if the attribute of individualism might have a negative impact, this impact might be hidden/diluted due to the fact that individualistic countries also have access to more resources. This could explain why the correlation between individualism and mean daily cases initially seems relatively low (correlation = 0.27).
+
+### ***Correlation with stringency index***
+Stringency index refers to how strict the policies implemented in a country was. The individualism index correlates negatively with countries' stringency index (correlation = -0.2990444). This implies that the government of more individualistic countries implemented policies that were less strict than the governments of collectivistic countries. This means that differences in COVID impact are not simply due to individualist actions from citizens, but also that there is somewhat less political pressure to implement stringent policies in more individualistic countries. 
+
+## Graph of individualism vs mean new cases 
+
+The following graph is the most basic way of visualizing the relationship between individualism and mean daily cases per country. 
+
+```{r echo=FALSE, messages=FALSE}
+
+country_summary_adjusted <- filter(country_summary, country_summary$location != "Australia" & country_summary$location != "New Zealand")
+
+ggplot(data = country_summary, mapping = aes(x=i, y=c/p)) + geom_point() + geom_smooth(formula ="y ~ x",method="lm", se=FALSE,aes(color="Original data")) + geom_text(aes(label="New Zealand", x=75, y=0.00001))+
+  geom_text(aes(label="Australia", x=90, y=0.000015))+labs(title="Individualism Index vs Mean Daily Cases per country",x="Indivdualism Index",y="Mean daily cases")+geom_smooth(data=country_summary_adjusted, aes(x=i, y=c/p,color="Without AUS and NZ"),formula ="y ~ x", method="lm", se=FALSE) +theme(legend.position="bottom")
+
+
+
+
+```
+
+## Understanding this graph
+On the x-axis the individualism index of each country is shown. On the y-axis the mean daily cases proportional to the country's population is shown. The red trendline is drawn using all the data in the dataset, while the blue trendline is drawn without taking Australia or New Zealand into account. 
+
+##  Interpretation
+
+### ***General trend***
+This graph illustrates that even when we do not take economic differences into account, there is still a correlation between individualism and mean COVID cases per day. A possible explanation for this trend is that in individualistic countries citizens are less likely to prioritize the safety of the collective population in their decision making. This could lead to some members of the society acting irresponsibly or at worst disregarding covid precautions. Some members of society who consider COVID-19 not a be a threat to their health (like younger people with no underlying conditions), might also be more inclined to act selfishly in an individualistic society.
+This is a possible explanation as to why countries with a higher individualism index have more cases per day.
+
+### ***Exceptions***
+It is interesting to note that two very individualistic countries, namely New Zealand and Australia, buck this trend. However, these two countries' low daily cases can be explained by other factors not relating to cultural attitudes or individual actions.  
+
+#### ***New Zealand***
+New Zealand's Covid response has been universally aclaimed. The country reacted much earlier than other countries and also implemented strict travel restrictions. The leadership of Jacinda Ardern has been commended internationally. 
+
+#### ***Australia***
+Australia has advantages in terms of geographic isolation and population density. They also closed their borders early on and imposed mandatory home isolation. The states and territories also temporarily shut their borders
+
+
+In both cases, Australia and New Zealand's low numbers are not a result of their individualist attidudes, but rather the result of swift policy moves that have little to do with cultural differences.
+
+Removing these two excpetions yields a stronger trendline. The correlation between individualism index and mean daily cases increases from 0.27 to 0.33.
+
+This is still a relatively weak correlation. This might be due to the fact that this graph does not take economic factors into account.
+
+
+
+## Individualism vs Mean Daily Cases grouped by GDP per capita
+```{r echo=FALSE}
+country_summary_order_gdp <- country_summary[order(country_summary$g,decreasing = TRUE),]
+g1 <- country_summary_order_gdp[1:19,];
+g2 <- country_summary_order_gdp[19:37,];
+g3 <- country_summary_order_gdp[37:55,];
+
+
+ggplot() +geom_point(data = g1, mapping = aes(x=i, y=c/p,color="highest")) + geom_smooth(data = g1, mapping = aes(x=i, y=c/p,color="highest"), method="lm",formula ="y ~ x",se=FALSE)+
+geom_point(data = g2, mapping = aes(x=i, y=c/p,color="middle")) + geom_smooth(data = g2, mapping = aes(x=i, y=c/p,color="middle"), method="lm",se=FALSE,formula ="y ~ x")+
+geom_point(data = g3, mapping = aes(x=i, y=c/p,color="low")) + geom_smooth(data = g3, mapping = aes(x=i, y=c/p,color="low"), method="lm",se=FALSE, formula ="y ~ x") + labs(title="Individualism index vs mean daily cases grouped by GDP", x="Individualism Index",y="Mean Daily Cases")+theme(legend.position="bottom")
+
+```
+
+## Understanding this graph
+The countries in the previous graph is split into terciles based on their GDP per capita. A trend line is then drawn for the low, middle and high income groups. 
+
+
+## Interpretation
+This graph supports the earlier hypothesis that differing economic factors was obscuring the trend. 
+By grouping countries by income, this graph compensates somewhat for the effect of GPD per capita by comparing countries with a similar economic status. This helps to isolate the influence of the individualism index. 
+
+### ***High and middle income countries show a clearer correlation***
+In the top tercile, the correlation coefeccient between individualism index and mean daily cases is 0.4 and in the middle income group this correlation is 0.45. This might not be a strong correlation, but it is significant enough to consider the possibility that individualistic attitudes may lead to more COVID-cases. 
+
+### ***Almost no correlation in the low income group***
+Surprisingly, this correlation seems to disappear in the bottom tercile. There could be two reasons for this. 
+
+#### 1 Other signifcant factors 
+It might be the case that the mean daily cases in low income countries are so much more influenced by the economic/social factors that often come with low economic status, that the influence of the individualism index is simply not noticeable. 
+
+#### 2 Most of the countries in the low income group are relatively collectivistic
+The majority of the lower income countries lie  to the left of the graph and are mostly collectivistic There are no low income countries with an individualism index higher than 75. Thus there are no real examples of low income countries that are very individualistic. This means we are comparing relatively collectivist countries with other relatively collectivist countries and therefore we might not observe a trend. 
+
+
+
+
+# Individualistic and collectivistic mean daily cases over time 
+```{r echo=FALSE}
+
+#group countries by location
+d <- data %>% group_by(location) %>% summarise( "i"=mean(individualism_index))
+d <- d[order(d$i),]
+
+#take top half and bottom half
+col <- d[1:27,1]
+ind <- d[28:55,1]
+
+#make two datasets with all data for coll and indv half
+coll <-filter(data,is.element(data$location,unlist(col)) )
+indd <- filter(data,is.element(data$location,unlist(ind)) )
+
+
+#group by date and for each date get mean of newcases/pop for each country
+col_summary_group_by_date <- coll %>% group_by(date) %>% summarise( "c"=mean(new_cases/population))
+
+ind_summary_group_by_date <- indd %>% group_by(date) %>% summarise( "c"=mean(new_cases/population))
+
+
+ggplot() + geom_line(data=col_summary_group_by_date,aes(color="Collectivistic",x=ymd(date),y=c))+ geom_line(data=ind_summary_group_by_date,aes(x=ymd(date),y=c,color="Individualistic"))+theme(legend.position="bottom")+
+  labs(title="New covid cases over time",y="New cases per  day",x="Time");
+```
+
+
+
+
+
+
+
+##  Understanding this graph
+In this graph the dataset containing all the countries is split into two equal groups based on their individualism index. The mean cases per day as a proportion of population is then plotted for the more individualistic half and the more collectivistic half. 
+
+## Interpretation
+
+### ***On average individualistic countries have more cases per day***
+The graph representing the individualistic group lies above the collectivistic graph most of the time. This means that most days the indivdualistic group had more new cases per day than the collectivistic group. A factor that could be inflating this difference is the fact that collectivistic countries that are likely to be less wealthy might not have the resources to test as effectively and thus their new cases may be underreported. However, the difference between the two lines is still significant enough to indicate some  trend. 
+
+
+### ***The individualistic group reaches peaks earlier***
+It is also interesting to note that although the two groups of countries have similar wave structures, individualistic countries often seen to reach a peak before collectivistic countries. This might be explained by the fact that Covid 19 impacted 1st world countries (that are more likely to be indivdidualistic) first.
+
+
+### ***The collectivistic group's graph is smoother***
+The individualistic group's line also seems to vary more while the collectivist group's line seems smoother. The difference between the highest point and the lowest point on the individualistic graph is much larger than it is for the collectivist graph. This could also possibly be explained by less resources for testing in collectivist countries. Another intepretation could be that individualist governments are more likely to let a wave reach a higher peak before implementing strict policy to bring cases down. This aligns with the fact that the individualism index has some correlation with the stringency index. 
+
+
+# Conclusion
+It seems that there is at least some correlation between individualistic attitudes in a country and the national impact of Covid-19. This correlation exists on average (mean daily cases per country) and over time. However, no factor analysed in this project plays a more important role than economic status. Even though citizens in collectivist countries might be more inclined to make socially responsible decisions, their lack of resources might still leave them in a worse position that richer individualist countries. That being said, it still seems that collectivist attitudes do help to prevent cases. This is not to say that collectivism is inhrerently better than individualism, but rather that citizens making desicions with the safety of other in might plays an important role in fighting covid-19. 
+
+
+
+
+# References
+
+
+1. Hofstede, G., 2005. Culture's consequences: International differences in work-related values, Newbury Park: Sage. 
+2. Our world in data Covid-19 dataset Published online at OurWorldInData.org. Retrieved from: ‘https://github.com/owid/covid-19-data [Online Resource]
+3 "What can we learn from Australia's Covid-19 response?" Available online: https://www.forbes.com/sites/williamhaseltine/2021/03/24/what-can-we-learn-from-australias-covid-19-response/?sh=66749dcb3a01
+4. "New Zealand: A response to be proud of" Available online:
+https://www.globalhealthnow.org/2021-04/new-zealand-response-be-proud
